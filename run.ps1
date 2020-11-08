@@ -48,7 +48,11 @@ $idx = Get-Random -Maximum $videos.Length
 $video = $videos[$idx]
 $videoUrl = [System.Uri]$video.url
 if ($videoUrl.Host -ne "youtu.be") {
-  [System.Windows.MessageBox]::Show("Invalid url: " + $video.url + " Must be https://youtu.be/... (use the 'Share' button in YouTube)")
+  [void][System.Windows.MessageBox]::Show(
+    "Invalid url: " + $video.url + "`nMust be https://youtu.be/...`nUse the 'Share' button in YouTube!",
+    "Configuration issue",
+    "OK", "Error"
+    )
   exit 0
 }
 $videoId = $videoUrl.Segments[1]
@@ -217,7 +221,10 @@ if ($videoMonitor -eq "largest") {
   # Find screen by number
   $browserScreen = $screens | Where-Object { $_.Index -eq $videoMonitor }
   if (!$browserScreen) {
-    [System.Windows.MessageBox]::Show("Monitor $videoMonitor not found")
+    [void][System.Windows.MessageBox]::Show(
+      "Monitor $videoMonitor not found.",
+      "Configuration issue",
+      "OK", "Error")
     exit 0
   }
 }
@@ -262,7 +269,10 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
         $response = $request.getResponse()
         $image = [System.Drawing.Image]::FromStream($response.getResponseStream())
       } catch {
-        [System.Windows.MessageBox]::Show("Could not load image from URL: " + $Error[0])
+        [void][System.Windows.MessageBox]::Show(
+          "Could not load image from URL: " + $Error[0],
+          "Network issue",
+          "OK", "Error")
       }
     } else {
       try {
@@ -270,7 +280,10 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
         $otherMonitorsOverlay = Resolve-Path $otherMonitorsOverlay -ErrorAction Stop
         $image = [System.Drawing.Image]::FromFile($otherMonitorsOverlay)
       } catch {
-        [System.Windows.MessageBox]::Show("Invalid image path: " + $Error[0])
+        [void][System.Windows.MessageBox]::Show(
+          "Invalid image path: " + $Error[0],
+          "Configuration issue",
+          "OK", "Error")
       }
     }
   }
