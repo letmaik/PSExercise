@@ -54,7 +54,7 @@ To test your configuration options (at least the ones unrelated to task scheduli
 .\run.ps1
 ```
 
-Note: To stop a video early or if you haven't specified `t2`, press <kbd>Alt</kbd>+<kbd>F4</kbd>.
+**Note:** To stop a video early or if you haven't specified `t2`, press <kbd>Alt</kbd>+<kbd>F4</kbd>.
 
 ### Register as scheduled task
 
@@ -63,11 +63,11 @@ Note: To stop a video early or if you haven't specified `t2`, press <kbd>Alt</kb
 ```
 When opening the [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) you can now find the task inside the `letmaik` folder.
 
-Note: Any time you make a change to the "task registration" options in `config.ps1` or if you move or rename the repository folder, simply re-run the above command.
+Note: Any time you make a change to the task registration options in `config.ps1` or if you move or rename the repository folder, simply re-run the above command.
 
 ### Unregister the scheduled task
 
-To stop the automated schedule, you can remove the task again from the Windows Task Schedule by running:
+To stop the automated schedule, you can remove the task again from the Windows Task Scheduler by running:
 ```sh
 .\register.ps1 -remove
 ```
@@ -77,6 +77,10 @@ To stop the automated schedule, you can remove the task again from the Windows T
 ### How do I stop the video (early)?
 
 Press <kbd>Alt</kbd>+<kbd>F4</kbd>.
+
+### Why is <kbd>Esc</kbd> and <kbd>F11</kbd> not working?
+
+The browser is started in kiosk mode which makes it fullscreen and blocks access to most controls. The idea is that it shouldn't be too easy to skip a video.
 
 ### Why is the window closed too early when the video is paused for a while?
 
