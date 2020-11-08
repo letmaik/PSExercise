@@ -36,7 +36,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 
 NOTE: Never run scripts that you haven't inspected yourself first!
 
-## Configuration
+### Configuration
 
 Make a copy of `config.sample.ps1` and save it as `config.ps1`.
 You can configure all options and your video collection in this file.
