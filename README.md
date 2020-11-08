@@ -4,6 +4,10 @@ A tool for Windows that shows fullscreen YouTube videos on a configurable time s
 
 It's called PSExercise because I use it to interrupt my desk life with exercise videos and it is based on [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/overview).
 
+| ![Screenshot](screenshot.jpg) |
+|:--:| 
+| *Two monitors using the blur option* |
+
 ## Features
 
 - Configuration through simple PowerShell file (see [`config.sample.ps1`](config.sample.ps1))
