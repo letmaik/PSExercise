@@ -22,7 +22,7 @@ if ($ask) {
 # - video playback history of today (to avoid playing duplicate videos)
 $dataDir = "$PSScriptRoot\.data"
 if (-not (Test-Path $dataDir)) {
-  New-Item $dataDir -ItemType "directory"
+  New-Item $dataDir -ItemType "directory" | Out-Null
   (Get-Item $dataDir).Attributes += "Hidden"
 }
 
@@ -48,7 +48,7 @@ $idx = Get-Random -Maximum $videos.Length
 $video = $videos[$idx]
 $videoUrl = [System.Uri]$video.url
 if ($videoUrl.Host -ne "youtu.be") {
-  [System.Windows.MessageBox]::Show("Invalid url: " + $video.url)
+  [System.Windows.MessageBox]::Show("Invalid url: " + $video.url + " Must be https://youtu.be/... (use the 'Share' button in YouTube)")
   exit 0
 }
 $videoId = $videoUrl.Segments[1]
