@@ -50,7 +50,7 @@ $videoUrl = [System.Uri]$video.url
 if ($videoUrl.Host -ne "youtu.be") {
   [void][System.Windows.MessageBox]::Show(
     "Invalid url: " + $video.url + "`nMust be https://youtu.be/...`nUse the 'Share' button in YouTube!",
-    "Configuration issue",
+    "PSExercise: Configuration issue",
     "OK", "Error"
     )
   exit 0
@@ -223,7 +223,7 @@ if ($videoMonitor -eq "largest") {
   if (!$browserScreen) {
     [void][System.Windows.MessageBox]::Show(
       "Monitor $videoMonitor not found.",
-      "Configuration issue",
+      "PSExercise: Configuration issue",
       "OK", "Error")
     exit 0
   }
@@ -271,7 +271,7 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
       } catch {
         [void][System.Windows.MessageBox]::Show(
           "Could not load image from URL: " + $Error[0],
-          "Network issue",
+          "PSExercise: Network issue",
           "OK", "Error")
       }
     } else {
@@ -282,7 +282,7 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
       } catch {
         [void][System.Windows.MessageBox]::Show(
           "Invalid image path: " + $Error[0],
-          "Configuration issue",
+          "PSExercise: Configuration issue",
           "OK", "Error")
       }
     }
