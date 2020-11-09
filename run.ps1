@@ -351,7 +351,7 @@ foreach ($overlay in $overlays) {
 }
 
 # Close browser again
-if (!$process.HasExited -and !$process.CloseMainWindow()) {
+if (!$process.HasExited) {
   $process.Kill()
 }
 
