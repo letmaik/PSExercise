@@ -118,4 +118,6 @@ Edge is available on all up-to-date Windows 10 PCs and this means the tool will 
 
 `history.txt`: Playback history of the current day to avoid showing the same video twice
 
+`lastrun.txt`: Terminal output from the last run to aid in diagnosing issues
+
 `Edge/`: A fresh browser profile to force starting Edge in a separate process and avoid interfering with any other open browser windows

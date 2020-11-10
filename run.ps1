@@ -26,6 +26,7 @@ if ($ask) {
 # Create data directory for
 # - Microsoft Edge user data folder (see below why we need this)
 # - video playback history of today (to avoid playing duplicate videos)
+# - stdout/stderr of last run (for diagnostic purposes)
 $dataDir = "$PSScriptRoot\.data"
 if (-not (Test-Path $dataDir)) {
   Log "Creating $dataDir"
