@@ -1,26 +1,6 @@
-﻿# Read the configuration
-. "$PSScriptRoot\config.ps1"
-
-function Log($msg) {
+﻿function Log($msg) {
   $date = "[{0:HH:mm:ss}]" -f (Get-Date)
   Write-Host "$date $msg"
-}
-
-# Check if today's day passes the day of week filter
-if ($activeDays -notcontains (Get-Date).DayOfWeek) {
-  Log "Skipping, week day filter"
-  exit 0
-}
-
-Add-Type -AssemblyName PresentationFramework
-
-# Ask for permission to continue
-if ($ask) {
-  $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
-  if ($answer -ne 'Yes') {
-    Log "Skipping, answered No"
-    exit 1
-  }
 }
 
 # Create data directory for
@@ -35,7 +15,32 @@ if (-not (Test-Path $dataDir)) {
 }
 
 # Start logging to file
-Start-Transcript -path "$PSScriptRoot\.data\lastrun.txt"
+Log "Starting logging to $PSScriptRoot\.data\lastrun.txt"
+Start-Transcript -path "$PSScriptRoot\.data\lastrun.txt" | Out-Null
+try { # see end of file
+
+# Read the configuration
+Log "Reading configuration from $PSScriptRoot\config.ps1"
+. "$PSScriptRoot\config.ps1"
+
+# Check if today's day passes the day of week filter
+if ($activeDays -notcontains (Get-Date).DayOfWeek) {
+  Log "Skipping, week day filter"
+  exit 0
+}
+
+Add-Type -AssemblyName PresentationFramework
+
+# Ask for permission to continue
+if ($ask) {
+  Log "Showing confirmation box"
+  $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
+  if ($answer -ne 'Yes') {
+    Log "Exiting, answered No"
+    exit 1
+  }
+  Log "Continuing, answered Yes"
+}
 
 # Check which videos were already played today
 $historyPath = "$dataDir\history.txt"
@@ -407,4 +412,10 @@ if ($videoEnd -and $retryCount -gt 0) {
     Log "This may trigger a retry if this is a scheduled task execution"
     exit 1
   }
+}
+
+# See start of file
+} finally {
+  Log "Stopping logging to file"
+  Stop-Transcript | out-null
 }
