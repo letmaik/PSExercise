@@ -1,9 +1,14 @@
 ﻿# Read the configuration
 . "$PSScriptRoot\config.ps1"
 
+function Log($msg) {
+  $date = "[{0:HH:mm:ss}]" -f (Get-Date)
+  Write-Host "$date $msg"
+}
+
 # Check if today's day passes the day of week filter
 if ($activeDays -notcontains (Get-Date).DayOfWeek) {
-  Write-Host "Skipping, week day filter"
+  Log "Skipping, week day filter"
   exit 0
 }
 
@@ -13,6 +18,7 @@ Add-Type -AssemblyName PresentationFramework
 if ($ask) {
   $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
   if ($answer -ne 'Yes') {
+    Log "Skipping, answered No"
     exit 1
   }
 }
@@ -22,16 +28,22 @@ if ($ask) {
 # - video playback history of today (to avoid playing duplicate videos)
 $dataDir = "$PSScriptRoot\.data"
 if (-not (Test-Path $dataDir)) {
+  Log "Creating $dataDir"
   New-Item $dataDir -ItemType "directory" | Out-Null
   (Get-Item $dataDir).Attributes += "Hidden"
 }
+
+# Start logging to file
+Start-Transcript -path "$PSScriptRoot\.data\lastrun.txt"
 
 # Check which videos were already played today
 $historyPath = "$dataDir\history.txt"
 $midnight = Get-Date -Hour 0 -Minute 0 -Second 0
 if (Test-Path $historyPath -NewerThan $midnight) {
+  Log "Appending to existing history from today: $historyPath"
   $history = @(Get-Content -Path $historyPath)
 } else {
+  Log "Starting new history for today: $historyPath"
   $history = @()
 }
 
@@ -39,7 +51,10 @@ if (Test-Path $historyPath -NewerThan $midnight) {
 if ($history) {
   $filteredVideos = @($videos | Where-Object { $history -notcontains $_.url })
   if ($filteredVideos) {
+    Log "$($filteredVideos.Count) videos left after filtering videos watched today (total: $($videos.Count))"
     $videos = $filteredVideos
+  } else {
+    Log "No videos left after filtering videos watched today, skipping filter"
   }
 }
 
@@ -58,10 +73,12 @@ if ($videoUrl.Host -ne "youtu.be") {
 $videoId = $videoUrl.Segments[1]
 $videoStart = [int]$videoUrl.Query.Replace("?t=", "") # defaults to 0 if missing
 $videoEnd = $video.t2 # optional (if missing, no auto-exit)
+Log "Video: $($video.url)"
 
 # Update history
 $history += $video.url
 Set-Content -Path $historyPath -Value $history
+Log "Updating history"
 
 # Low-level Win32 APIs for interacting with the browser window
 $source = @"
@@ -212,6 +229,8 @@ foreach ($screen in [System.Windows.Forms.Screen]::AllScreens) {
   $screens += $data
 }
 
+Log "Found $($screens.Count) screen$(if ($screens.Count -gt 1) { 's' })"
+
 if ($videoMonitor -eq "largest") {
   # Find the largest screen, preferring left-most screens if equal sizes
   $browserScreen = $screens `
@@ -228,6 +247,7 @@ if ($videoMonitor -eq "largest") {
     exit 0
   }
 }
+Log "Using screen $($browserScreen.Index) ($([Math]::Round($browserScreen.PhysicalSizeInches))`")"
 
 $otherScreens = @($screens | Where-Object { $_.Index -ne $browserScreen.Index })
 
@@ -242,6 +262,7 @@ $windowY = $browserScreen.Y
 $windowWidth = $browserScreen.Width
 $windowHeight = $browserScreen.Height
 $appArgs = "--user-data-dir=`"$dataDir\Edge\User Data`" --inprivate --kiosk --window-position=$windowX,$windowY --window-size=$windowWidth,$windowHeight $url"
+Log "Starting browser: $appPath $appArgs"
 $process = Start-Process $appPath -ArgumentList $appArgs -PassThru
 
 # Show color/image overlay on other screens to avoid distraction
@@ -254,20 +275,25 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
   Add-Type -AssemblyName System.Drawing
   
   if ($otherMonitorsOverlay -eq "glass") {
+    Log "Using glass overlay for other screens"
     $bgColor = "#000000"
   } elseif ($otherMonitorsOverlay.StartsWith("#")) {
+    Log "Using single color overlay for other screens: $otherMonitorsOverlay"
     $bgColor = $otherMonitorsOverlay
   } else {
+    Log "Using image overlay for other screens: $otherMonitorsOverlay"
     $bgColor = "#000000"
     $image = $null
     if ($otherMonitorsOverlay.StartsWith("http")) {
       try {
+        Log "Downloading image..."
         $request = [System.Net.WebRequest]::create($otherMonitorsOverlay)
         # Note that the DNS resolution timeout cannot be set and may take up to 15s
         $request.ReadWriteTimeout = 3000
         # Note: getResponse() automatically throws an exception for bad HTTP status codes
         $response = $request.getResponse()
         $image = [System.Drawing.Image]::FromStream($response.getResponseStream())
+        Log "Downloading image...done"
       } catch {
         [void][System.Windows.MessageBox]::Show(
           "Could not load image from URL: " + $Error[0],
@@ -276,6 +302,7 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
       }
     } else {
       try {
+        Log "Loading image from file"
         Set-Location $PSScriptRoot
         $otherMonitorsOverlay = Resolve-Path $otherMonitorsOverlay -ErrorAction Stop
         $image = [System.Drawing.Image]::FromFile($otherMonitorsOverlay)
@@ -289,6 +316,7 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
   }
   
   foreach ($screen in $otherScreens) {
+    Log "Showing overlay on screen $($screen.Index)"
     $overlay = New-Object Windows.Forms.Form
     $overlay.StartPosition = 'Manual'
     $overlay.Location = New-Object System.Drawing.Point($screen.X, $screen.Y)
@@ -312,7 +340,7 @@ if ($otherScreens -and $otherMonitorsOverlay -ne "none") {
 }
 
 if (!$process.HasExited) {
-  # Wait until browser window is available
+  Log "Waiting for browser window to be ready"
   while (!$process.MainWindowHandle) {
     Start-Sleep -Milliseconds 100
   }
@@ -320,46 +348,62 @@ if (!$process.HasExited) {
   if ($overlays) {
     # The overlays created above have taken away the focus from the browser window
     # Restore focus to allow easy closing via Alt+F4
+    Log "Restoring focus on browser window"
     [void][Custom.Window]::SetForegroundWindow($process.MainWindowHandle)
   }
+} else {
+  Log "Browser has exited"
 }
 
 if ($videoEnd) {
   # Wait for video to finish playing
   $loadTime = 3
   $videoDuration = $videoEnd - $videoStart + $loadTime
+  Log "Video has end time, waiting $videoDuration seconds until automatically closing browser"
   $startTime = $(get-date)
+  $lastMessageAtElapsed = 0
   do {
     if ($overlays) {
       # Avoid overlays from showing a Wait cursor when hovering over them
       [System.Windows.Forms.Application]::DoEvents()
     }
     Start-Sleep -Seconds 1
-    $elapsedTime = $(get-date) - $startTime
+    $elapsedTime = ($(get-date) - $startTime).Seconds
+    $remainingTime = $videoDuration - $elapsedTime
+    if ($elapsedTime - $lastMessageAtElapsed -gt 10) {
+      Log "Remaining: $remainingTime seconds, elapsed: $elapsedTime seconds"
+      $lastMessageAtElapsed = $elapsedTime
+    }
     if ($process.HasExited) {
+      Log "Browser was closed manually"
       break
     }
-  } while ($elapsedTime.Seconds -lt $videoDuration)
+  } while ($remainingTime -gt 0)
 } else {
   # Wait until user presses Alt+F4
+  Log "Video has no end time, waiting until browser is closed manually"
   $process.WaitForExit()
 }
 
 # Remove overlays from other screens
 foreach ($overlay in $overlays) {
+  Log "Closing overlay"
   $overlay.Close()
 }
 
 # Close browser again
 if (!$process.HasExited) {
+  Log "Closing browser automatically"
   $process.Kill()
 }
 
 # Check if browser was closed early
-if ($videoEnd) {
+if ($videoEnd -and $retryCount -gt 0) {
   $ratioEarlyExitThreshold = 0.2
   $ratioPlayed = $elapsedTime.Seconds / $videoDuration
   if ($ratioPlayed -lt $ratioEarlyExitThreshold) {
+    Log "Browser was closed before having watched at least $([Math]::Round($ratioEarlyExitThreshold * 100))%"
+    Log "This may trigger a retry if this is a scheduled task execution"
     exit 1
   }
 }
