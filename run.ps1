@@ -374,7 +374,7 @@ if ($videoEnd) {
       [System.Windows.Forms.Application]::DoEvents()
     }
     Start-Sleep -Seconds 1
-    $elapsedTime = ($(get-date) - $startTime).Seconds
+    $elapsedTime = ($(get-date) - $startTime).TotalSeconds
     $remainingTime = $videoDuration - $elapsedTime
     if ($elapsedTime - $lastMessageAtElapsed -gt 10) {
       Log "Remaining: $remainingTime seconds, elapsed: $elapsedTime seconds"
