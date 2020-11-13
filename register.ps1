@@ -37,7 +37,7 @@ if ($retryCount -eq 0) {
     $action = New-ScheduledTaskAction -Execute "powershell" -Argument "${commonPSArgs} -WindowStyle hidden -File `"${runScriptPath}`""
 }
 $settings = New-ScheduledTaskSettingsSet `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
     -MultipleInstances IgnoreNew `
     -Priority 4 `
     -AllowStartIfOnBatteries `
