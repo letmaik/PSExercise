@@ -5,10 +5,10 @@
 $startTime = "09:00"
 $stopTime  = "17:00"
 $interval  = "1H" # or "30M" or "1H30M" etc.
+$weekDays = @( "Monday" ; "Tuesday" ; "Wednesday" ; "Thursday" ; "Friday" )
 
 # Options used at task execution.
 # Changes can be made at any time.
-$activeDays = @( "Monday" ; "Tuesday" ; "Wednesday" ; "Thursday" ; "Friday" )
 $ask = $true # if $false, video starts immediately
 $askTitle = "Time to move!"
 $askText = "Are you ready?"

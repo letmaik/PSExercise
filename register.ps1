@@ -36,15 +36,9 @@ $settings = New-ScheduledTaskSettingsSet `
     -Priority 4 `
     -AllowStartIfOnBatteries `
     -DisallowStartOnRemoteAppSession
-$trigger = New-ScheduledTaskTrigger -Daily -At $startTime
+$trigger = New-ScheduledTaskTrigger -At $startTime -DaysOfWeek $weekDays -Weekly -WeeksInterval 1
 $task = Register-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -TaskPath $taskPath -TaskName $taskName
 # New-ScheduledTaskTrigger does not offer setting repetition options directly
 $task.Triggers.Repetition.Duration = ((Get-Date $stopTime) - (Get-Date $startTime)).ToString("'PT'%h'H'%m'M'")
 $task.Triggers.Repetition.Interval = "PT" + $interval
-if ($retryCount -gt 0) {
-    # New-ScheduledTaskSettingsSet can also be used to set these,
-    # but using this method allows to use ISO duration strings directly
-    $task.Settings.RestartCount = $retryCount
-    $task.Settings.RestartInterval = "PT" + $retryInterval
-}
 $task | Set-ScheduledTask | Out-Null
