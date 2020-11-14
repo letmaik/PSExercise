@@ -70,12 +70,87 @@ namespace Custom
       if (hWnd == null)
         return false;
       RECT rect = new RECT();
-      GetWindowRect(new HandleRef(null, hWnd), ref rect);
+      if (!GetWindowRect(new HandleRef(null, hWnd), ref rect)) {
+        Console.WriteLine("IsForegroundFullScreen: GetWindowRect() failed");
+        return false;
+      }
       // This also handles the case where a window is maximized and the task bar is hidden.
       // In that case, the drop shadow of the window borders causes the window bounds to extend
       // beyond the screen size. Only a true fullscreen window will pass the check.
       return screen.Bounds.Left == rect.Left && screen.Bounds.Right == rect.Right &&
              screen.Bounds.Top == rect.Top && screen.Bounds.Bottom == rect.Bottom;
+    }
+
+    // Message boxes are always displayed on the primary display.
+    // Using an invisible window at the right location as owner solves this issue
+    // but causes other issues:
+    // 1) The taskbar entry doesn't move to other screens when moving the message box.
+    // 2) The taskbar thumbnail is empty.
+    // The following uses hooks to position the newly created message box directly.
+    // See https://web.archive.org/web/20080219023913/http://support.microsoft.com/kb/180936
+    // and https://stackoverflow.com/a/3498791.
+
+    internal delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
+    internal static HookProc _hookProc;
+    internal static IntPtr _hHook;
+    internal static System.Windows.Forms.Screen _hookScreen;
+
+    internal const int WH_CBT = 5;
+    internal const int HCBT_ACTIVATE = 5;
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hInstance, int threadId);
+
+    [DllImport("user32.dll")]
+    internal static extern int UnhookWindowsHookEx(IntPtr idHook);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr CallNextHookEx(int hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll")]
+    internal static extern int GetCurrentThreadId();
+
+    internal static IntPtr WindowHookProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+      if (nCode < 0) {
+        return CallNextHookEx(0, nCode, wParam, lParam);
+      }
+      if (nCode == HCBT_ACTIVATE) {
+        try {
+          CenterWindow(wParam);
+        } finally {
+          UnhookWindowsHookEx(_hHook);
+        }
+      }
+      return CallNextHookEx(0, nCode, wParam, lParam);
+    }
+    
+    [DllImport("user32.dll")]
+    internal static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
+    
+    internal static void CenterWindow(IntPtr hWnd)
+    {
+      RECT wndRect = new RECT();
+      if (!GetWindowRect(new HandleRef(null, hWnd), ref wndRect)) {
+        Console.WriteLine("CenterWindow: GetWindowRect() failed");
+        return;
+      }
+      var screenRect = _hookScreen.Bounds;
+      var w = wndRect.Right - wndRect.Left;
+      var h = wndRect.Bottom - wndRect.Top;
+      var x = screenRect.Left + screenRect.Width / 2 - w / 2;
+      var y = screenRect.Top + screenRect.Height / 2 - h / 2;
+      if (!MoveWindow(hWnd, x, y, w, h, false)) {
+        Console.WriteLine("CenterWindow: MoveWindow() failed");
+        return;
+      }
+    }
+
+    public static void CenterNextWindowOnScreen(System.Windows.Forms.Screen screen)
+    {
+      _hookScreen = screen;
+      _hookProc = new HookProc(WindowHookProc);
+      _hHook = SetWindowsHookEx(WH_CBT, _hookProc, IntPtr.Zero, GetCurrentThreadId());
     }
 
     internal enum AccentState
@@ -137,7 +212,7 @@ namespace Custom
   }
 
 	[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Ansi)]
-	public struct DISPLAY_DEVICE 
+	internal struct DISPLAY_DEVICE 
 	{
     [MarshalAs(UnmanagedType.U4)]
     public int cb;
@@ -159,8 +234,9 @@ namespace Custom
     public static extern bool SetProcessDPIAware();
 
     [DllImport("user32.dll")]
-		public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
-		public static string GetDeviceID(string deviceName)
+		internal static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+    
+    public static string GetDeviceID(string deviceName)
 		{     
       DISPLAY_DEVICE outVar = new DISPLAY_DEVICE();
       outVar.cb = (short)Marshal.SizeOf(outVar);
@@ -253,21 +329,8 @@ Add-Type -AssemblyName PresentationFramework
 # Ask for permission to continue
 if ($ask) {
   Log "Showing confirmation box on screen $($browserScreen.Index)"
-  # Invisible dummy window required to allow displaying the message box on a specific screen
-  # Caveat: Taskbar thumbnail will be a transparent area instead of the message box
-  $window = New-Object System.Windows.Window
-  $window.Title = $askTitle
-  $window.Top = $browserScreen.Y
-  $window.Left = $browserScreen.X
-  $window.Width = 100
-  $window.Height = 50
-  $window.WindowStyle = "None"
-  $window.AllowsTransparency = $true
-  $window.Opacity = 0 # fully transparent windows also pass-thru mouse clicks
-  $window.Show()
-  $window.Activate() | Out-Null
-  $answer = [System.Windows.MessageBox]::Show($window, $askText, $askTitle, 'YesNo', 'Question')
-  $window.Close()
+  [Custom.Window]::CenterNextWindowOnScreen($browserScreen.Screen)
+  $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
   if ($answer -ne 'Yes') {
     Log "Exiting, answered No"
     exit
