@@ -20,7 +20,7 @@ Log "Reading configuration from $PSScriptRoot\config.ps1"
 
 # Check if another instance is already waiting for confirmation
 if ($ask) {
-  $existing = Get-Process | Sort-Object MainWindowTitle | Where-Object { $_.MainWindowTitle -eq $askTitle }
+  $existing = Get-Process | Where-Object { $_.MainWindowTitle -eq $askTitle }
   if ($existing) {
     Log "PSExercise already running, exiting"
     exit
@@ -156,6 +156,9 @@ namespace Custom
   public class Displays
   {
     [DllImport("user32.dll")]
+    public static extern bool SetProcessDPIAware();
+
+    [DllImport("user32.dll")]
 		public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
 		public static string GetDeviceID(string deviceName)
 		{     
@@ -172,6 +175,9 @@ namespace Custom
 "@
 
 Add-Type -TypeDefinition $source -ReferencedAssemblies System.Drawing, System.Windows.Forms, PresentationFramework
+
+# Ensure that returned display sizes are not scaled
+[Custom.Displays]::SetProcessDPIAware() | Out-Null
 
 # Query display information:
 #  Index: screen number (as seen in display settings dialog)
@@ -212,6 +218,9 @@ foreach ($screen in [System.Windows.Forms.Screen]::AllScreens) {
 }
 
 Log "Found $($screens.Count) screen$(if ($screens.Count -gt 1) { 's' })"
+foreach ($screen in $screens | Sort-Object { $_.X }) {
+  Log "Screen $($screen.Index): $($screen.Width) x $($screen.Height) @ $([Math]::Round($screen.PhysicalSizeInches))`" (x=$($screen.X) y=$($screen.Y))"
+}
 
 if ($videoMonitor -eq "largest") {
   # Find the largest screen, preferring left-most screens if equal sizes
@@ -229,7 +238,7 @@ if ($videoMonitor -eq "largest") {
     exit
   }
 }
-Log "Using screen $($browserScreen.Index) ($([Math]::Round($browserScreen.PhysicalSizeInches))`")"
+Log "Using screen $($browserScreen.Index) for video"
 
 $otherScreens = @($screens | Where-Object { $_.Index -ne $browserScreen.Index })
 
@@ -243,7 +252,7 @@ Add-Type -AssemblyName PresentationFramework
 
 # Ask for permission to continue
 if ($ask) {
-  Log "Showing confirmation box"
+  Log "Showing confirmation box on screen $($browserScreen.Index)"
   # Invisible dummy window required to allow displaying the message box on a specific screen
   # Caveat: Taskbar thumbnail will be a transparent area instead of the message box
   $window = New-Object System.Windows.Window
