@@ -23,12 +23,6 @@ try { # see end of file
 Log "Reading configuration from $PSScriptRoot\config.ps1"
 . "$PSScriptRoot\config.ps1"
 
-# Check if today's day passes the day of week filter
-if ($activeDays -notcontains (Get-Date).DayOfWeek) {
-  Log "Skipping, week day filter"
-  exit
-}
-
 Add-Type -AssemblyName PresentationFramework
 
 # Ask for permission to continue
