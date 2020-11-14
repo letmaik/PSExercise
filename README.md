@@ -16,6 +16,7 @@ It's called PSExercise because I use it to interrupt my desk life with exercise 
 - Select screen on which to show video (default: the largest)
 - Blur out extra screens or show an image or color
 - Option to ask for confirmation before starting video
+- Delayed confirmation popup when fullscreen app is in foreground
 - Set start/end time of day and interval for showing videos
 - Set weekdays for showing videos
 - Uses Microsoft Edge in private-browsing mode (with a fresh profile)

@@ -23,64 +23,7 @@ try { # see end of file
 Log "Reading configuration from $PSScriptRoot\config.ps1"
 . "$PSScriptRoot\config.ps1"
 
-Add-Type -AssemblyName PresentationFramework
-
-# Ask for permission to continue
-if ($ask) {
-  Log "Showing confirmation box"
-  $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
-  if ($answer -ne 'Yes') {
-    Log "Exiting, answered No"
-    exit
-  }
-  Log "Continuing, answered Yes"
-}
-
-# Check which videos were already played today
-$historyPath = "$dataDir\history.txt"
-$midnight = Get-Date -Hour 0 -Minute 0 -Second 0
-if (Test-Path $historyPath -NewerThan $midnight) {
-  Log "Appending to existing history from today: $historyPath"
-  $history = @(Get-Content -Path $historyPath)
-} else {
-  Log "Starting new history for today: $historyPath"
-  $history = @()
-}
-
-# Filter to videos not played yet
-if ($history) {
-  $filteredVideos = @($videos | Where-Object { $history -notcontains $_.url })
-  if ($filteredVideos) {
-    Log "$($filteredVideos.Count) videos left after filtering videos watched today (total: $($videos.Count))"
-    $videos = $filteredVideos
-  } else {
-    Log "No videos left after filtering videos watched today, skipping filter"
-  }
-}
-
-# Select a random video
-$idx = Get-Random -Maximum $videos.Length
-$video = $videos[$idx]
-$videoUrl = [System.Uri]$video.url
-if ($videoUrl.Host -ne "youtu.be") {
-  [void][System.Windows.MessageBox]::Show(
-    "Invalid url: " + $video.url + "`nMust be https://youtu.be/...`nUse the 'Share' button in YouTube!",
-    "PSExercise: Configuration issue",
-    "OK", "Error"
-    )
-  exit
-}
-$videoId = $videoUrl.Segments[1]
-$videoStart = [int]$videoUrl.Query.Replace("?t=", "") # defaults to 0 if missing
-$videoEnd = $video.t2 # optional (if missing, no auto-exit)
-Log "Video: $($video.url)"
-
-# Update history
-$history += $video.url
-Set-Content -Path $historyPath -Value $history
-Log "Updating history"
-
-# Low-level Win32 APIs for interacting with the browser window
+# Low-level Win32 APIs
 $source = @"
 using System;
 using System.Runtime.InteropServices;
@@ -96,6 +39,35 @@ namespace Custom
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetForegroundWindow();
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+    
+    [DllImport("user32.dll")]
+    internal static extern bool GetWindowRect(HandleRef hWnd, [In, Out] ref RECT rect);
+
+    public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen)
+    {
+      IntPtr hWnd = GetForegroundWindow();
+      if (hWnd == null)
+        return false;
+      RECT rect = new RECT();
+      GetWindowRect(new HandleRef(null, hWnd), ref rect);
+      // This also handles the case where a window is maximized and the task bar is hidden.
+      // In that case, the drop shadow of the window borders causes the window bounds to extend
+      // beyond the screen size. Only a true fullscreen window will pass the check.
+      return screen.Bounds.Left == rect.Left && screen.Bounds.Right == rect.Right &&
+             screen.Bounds.Top == rect.Top && screen.Bounds.Bottom == rect.Bottom;
+    }
 
     internal enum AccentState
     {
@@ -190,7 +162,7 @@ namespace Custom
 }
 "@
 
-Add-Type -TypeDefinition $source -ReferencedAssemblies System.Windows.Forms, presentationframework
+Add-Type -TypeDefinition $source -ReferencedAssemblies System.Drawing, System.Windows.Forms, PresentationFramework
 
 # Query display information:
 #  Index: screen number (as seen in display settings dialog)
@@ -205,6 +177,7 @@ foreach ($screen in [System.Windows.Forms.Screen]::AllScreens) {
     Y = $screen.Bounds.Y
     Width = $screen.Bounds.Width
     Height = $screen.Bounds.Height
+    Screen = $screen
   }
   # deviceId = \\?\DISPLAY#DELA0C5#5&18cf046e&0&UID260#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
   $deviceId = [Custom.Displays]::GetDeviceID($screen.DeviceName)
@@ -250,6 +223,83 @@ if ($videoMonitor -eq "largest") {
 Log "Using screen $($browserScreen.Index) ($([Math]::Round($browserScreen.PhysicalSizeInches))`")"
 
 $otherScreens = @($screens | Where-Object { $_.Index -ne $browserScreen.Index })
+
+# If a window is shown fullscreen, wait until it is not fullscreen anymore
+while ([Custom.Window]::IsForegroundFullScreen($browserScreen.Screen)) {
+  Log "Fullscreen window detected on screen $($browserScreen.Index), waiting"
+  Start-Sleep -Seconds 3
+}
+
+Add-Type -AssemblyName PresentationFramework
+
+# Ask for permission to continue
+if ($ask) {
+  Log "Showing confirmation box"
+  # Invisible dummy window required to allow displaying the message box on a specific screen
+  # Caveat: Taskbar thumbnail will be a transparent area instead of the message box
+  $window = New-Object System.Windows.Window
+  $window.Title = $askTitle
+  $window.Top = $browserScreen.Y
+  $window.Left = $browserScreen.X
+  $window.Width = 100
+  $window.Height = 50
+  $window.WindowStyle = "None"
+  $window.AllowsTransparency = $true
+  $window.Opacity = 0 # fully transparent windows also pass-thru mouse clicks
+  $window.Show()
+  $window.Activate() | Out-Null
+  $answer = [System.Windows.MessageBox]::Show($window, $askText, $askTitle, 'YesNo', 'Question')
+  $window.Close()
+  if ($answer -ne 'Yes') {
+    Log "Exiting, answered No"
+    exit
+  }
+  Log "Continuing, answered Yes"
+}
+
+# Check which videos were already played today
+$historyPath = "$dataDir\history.txt"
+$midnight = Get-Date -Hour 0 -Minute 0 -Second 0
+if (Test-Path $historyPath -NewerThan $midnight) {
+  Log "Appending to existing history from today: $historyPath"
+  $history = @(Get-Content -Path $historyPath)
+} else {
+  Log "Starting new history for today: $historyPath"
+  $history = @()
+}
+
+# Filter to videos not played yet
+if ($history) {
+  $filteredVideos = @($videos | Where-Object { $history -notcontains $_.url })
+  if ($filteredVideos) {
+    Log "$($filteredVideos.Count) videos left after filtering videos watched today (total: $($videos.Count))"
+    $videos = $filteredVideos
+  } else {
+    Log "No videos left after filtering videos watched today, skipping filter"
+  }
+}
+
+# Select a random video
+$idx = Get-Random -Maximum $videos.Length
+$video = $videos[$idx]
+$videoUrl = [System.Uri]$video.url
+if ($videoUrl.Host -ne "youtu.be") {
+  [void][System.Windows.MessageBox]::Show(
+    "Invalid url: " + $video.url + "`nMust be https://youtu.be/...`nUse the 'Share' button in YouTube!",
+    "PSExercise: Configuration issue",
+    "OK", "Error"
+    )
+  exit
+}
+$videoId = $videoUrl.Segments[1]
+$videoStart = [int]$videoUrl.Query.Replace("?t=", "") # defaults to 0 if missing
+$videoEnd = $video.t2 # optional (if missing, no auto-exit)
+Log "Video: $($video.url)"
+
+# Update history
+$history += $video.url
+Set-Content -Path $historyPath -Value $history
+Log "Updating history"
 
 # Open browser in kiosk and inprivate mode and auto-play video
 # --user-data-dir is used to force launching a separate process,
