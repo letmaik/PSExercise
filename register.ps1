@@ -26,13 +26,12 @@ $runScriptPath = "$scriptRoot\run.ps1"
 
 $psArgs = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned"
 # Use mshta to avoid showing a console window
+# Note that mshta runs in GUI instead of console mode and hence the task "finishes" immediately with exit code 0
 # See https://stackoverflow.com/a/45473968
 $action = New-ScheduledTaskAction -Execute "%SystemRoot%\system32\mshta.exe" `
     -Argument "vbscript:Execute(`"CreateObject(`"`"Wscript.Shell`"`").Run `"`"powershell ${psArgs} -File `"`"`"`"${runScriptPath}`"`"`"`" `"`", 0 : window.close`")"
 
 $settings = New-ScheduledTaskSettingsSet `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
-    -MultipleInstances IgnoreNew `
     -Priority 4 `
     -AllowStartIfOnBatteries `
     -DisallowStartOnRemoteAppSession

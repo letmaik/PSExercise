@@ -14,14 +14,23 @@ if (-not (Test-Path $dataDir)) {
   (Get-Item $dataDir).Attributes += "Hidden"
 }
 
+# Read the configuration
+Log "Reading configuration from $PSScriptRoot\config.ps1"
+. "$PSScriptRoot\config.ps1"
+
+# Check if another instance is already waiting for confirmation
+if ($ask) {
+  $existing = Get-Process | Sort-Object MainWindowTitle | Where-Object { $_.MainWindowTitle -eq $askTitle }
+  if ($existing) {
+    Log "PSExercise already running, exiting"
+    exit
+  }
+}
+
 # Start logging to file
 Log "Starting logging to $PSScriptRoot\.data\lastrun.txt"
 Start-Transcript -path "$PSScriptRoot\.data\lastrun.txt" | Out-Null
 try { # see end of file
-
-# Read the configuration
-Log "Reading configuration from $PSScriptRoot\config.ps1"
-. "$PSScriptRoot\config.ps1"
 
 # Low-level Win32 APIs
 $source = @"
