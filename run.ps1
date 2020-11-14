@@ -227,7 +227,7 @@ $otherScreens = @($screens | Where-Object { $_.Index -ne $browserScreen.Index })
 # If a window is shown fullscreen, wait until it is not fullscreen anymore
 while ([Custom.Window]::IsForegroundFullScreen($browserScreen.Screen)) {
   Log "Fullscreen window detected on screen $($browserScreen.Index), waiting"
-  Start-Sleep -Seconds 3
+  Start-Sleep -Seconds 30
 }
 
 Add-Type -AssemblyName PresentationFramework
