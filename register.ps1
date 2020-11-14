@@ -24,18 +24,12 @@ try {
 $scriptRoot = Split-Path $MyInvocation.MyCommand.Path
 $runScriptPath = "$scriptRoot\run.ps1"
 
-$commonPSArgs = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned"
-if ($retryCount -eq 0) {
-    # Use mshta to avoid showing a console window
-    # See https://stackoverflow.com/a/45473968
-    $action = New-ScheduledTaskAction -Execute "%SystemRoot%\system32\mshta.exe" `
-        -Argument "vbscript:Execute(`"CreateObject(`"`"Wscript.Shell`"`").Run `"`"powershell ${commonPSArgs} -File `"`"`"`"${runScriptPath}`"`"`"`" `"`", 0 : window.close`")"
-} else {
-    # Cannot use mshta to hide the console window as the exit code
-    # would get lost and we need it for task retry to work ("No" exits with 1)
-    # "-windowstyle hidden" flashes the console window shortly
-    $action = New-ScheduledTaskAction -Execute "powershell" -Argument "${commonPSArgs} -WindowStyle hidden -File `"${runScriptPath}`""
-}
+$psArgs = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned"
+# Use mshta to avoid showing a console window
+# See https://stackoverflow.com/a/45473968
+$action = New-ScheduledTaskAction -Execute "%SystemRoot%\system32\mshta.exe" `
+    -Argument "vbscript:Execute(`"CreateObject(`"`"Wscript.Shell`"`").Run `"`"powershell ${psArgs} -File `"`"`"`"${runScriptPath}`"`"`"`" `"`", 0 : window.close`")"
+
 $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
     -MultipleInstances IgnoreNew `

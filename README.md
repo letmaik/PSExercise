@@ -94,17 +94,6 @@ If `t2` is not given, then the window is not closed automatically, instead <kbd>
 This is a known technical limitation and happens especially for big images.
 If you're curious, check out the comments in `run.ps1` starting around `$overlays = @()`.
 
-### Why do I see a console window pop up shortly when using `$retryCount`?
-
-Retries are based on a feature in Windows Task Scheduler where a task is retried if it fails with an exit code not equal 0.
-The task script makes use of this by exiting with 1 if the confirmation popup was dismissed.
-To avoid console windows, the PowerShell `run.ps1` script is launched with the `-WindowStyle hidden` option, however this still shows a console window for a short amount of time.
-
-A work-around to this problem is [available](https://stackoverflow.com/a/45473968) but it has the downside of losing the exit code of the script and always returning 0.
-Because of that, the work-around is only used when the `$retryCount` option is not in use.
-
-If someone knows a proper solution to this, please open an issue.
-
 ### Why is this tool written in PowerShell?
 
 Mostly because it doesn't require any extra setup/installation steps.

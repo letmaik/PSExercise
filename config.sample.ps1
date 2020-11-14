@@ -5,8 +5,6 @@
 $startTime = "09:00"
 $stopTime  = "17:00"
 $interval  = "1H" # or "30M" or "1H30M" etc.
-$retryCount = 0 # retry x times if dismissed ($ask must be $true) or <20% of video watched (requires t2)
-$retryInterval = "15M" # only used if $retryCount > 0
 
 # Options used at task execution.
 # Changes can be made at any time.

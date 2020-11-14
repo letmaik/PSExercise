@@ -26,7 +26,7 @@ Log "Reading configuration from $PSScriptRoot\config.ps1"
 # Check if today's day passes the day of week filter
 if ($activeDays -notcontains (Get-Date).DayOfWeek) {
   Log "Skipping, week day filter"
-  exit 0
+  exit
 }
 
 Add-Type -AssemblyName PresentationFramework
@@ -37,7 +37,7 @@ if ($ask) {
   $answer = [System.Windows.MessageBox]::Show($askText, $askTitle, 'YesNo', 'Question')
   if ($answer -ne 'Yes') {
     Log "Exiting, answered No"
-    exit 1
+    exit
   }
   Log "Continuing, answered Yes"
 }
@@ -74,7 +74,7 @@ if ($videoUrl.Host -ne "youtu.be") {
     "PSExercise: Configuration issue",
     "OK", "Error"
     )
-  exit 0
+  exit
 }
 $videoId = $videoUrl.Segments[1]
 $videoStart = [int]$videoUrl.Query.Replace("?t=", "") # defaults to 0 if missing
@@ -250,7 +250,7 @@ if ($videoMonitor -eq "largest") {
       "Monitor $videoMonitor not found.",
       "PSExercise: Configuration issue",
       "OK", "Error")
-    exit 0
+    exit
   }
 }
 Log "Using screen $($browserScreen.Index) ($([Math]::Round($browserScreen.PhysicalSizeInches))`")"
@@ -401,17 +401,6 @@ foreach ($overlay in $overlays) {
 if (!$process.HasExited) {
   Log "Closing browser automatically"
   $process.Kill()
-}
-
-# Check if browser was closed early
-if ($videoEnd -and $retryCount -gt 0) {
-  $ratioEarlyExitThreshold = 0.2
-  $ratioPlayed = $elapsedTime.Seconds / $videoDuration
-  if ($ratioPlayed -lt $ratioEarlyExitThreshold) {
-    Log "Browser was closed before having watched at least $([Math]::Round($ratioEarlyExitThreshold * 100))%"
-    Log "This may trigger a retry if this is a scheduled task execution"
-    exit 1
-  }
 }
 
 # See start of file
