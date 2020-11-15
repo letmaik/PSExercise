@@ -33,6 +33,7 @@ $action = New-ScheduledTaskAction -Execute "%SystemRoot%\system32\mshta.exe" `
 
 $settings = New-ScheduledTaskSettingsSet `
     -Priority 4 `
+    -StartWhenAvailable `
     -AllowStartIfOnBatteries `
     -DisallowStartOnRemoteAppSession
 $trigger = New-ScheduledTaskTrigger -At $startTime -DaysOfWeek $weekDays -Weekly -WeeksInterval 1
